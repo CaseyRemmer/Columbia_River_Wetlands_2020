@@ -186,16 +186,16 @@ Hw$Type = "Snow"
 
 H2_lotic_w_GW_SW<-
   data2 %>% 
-  mutate(Type = factor(Type, levels=c("Snow", "G", "sCR", "lgCR", "R"))) %>%
+  #mutate(Type = factor(Type, levels=c("sCR", "lgCR", "R", "G"))) %>%
   ggplot()+
   geom_boxplot(aes(x=Type, y=H2, fill=Type), alpha=0.5)+
-  geom_boxplot(data=Hw, aes(x=Type, y=mean, fill="#FDB863"),alpha=0.5)+
   geom_point(aes(x=Type, y=H2, colour=Type),show.legend= FALSE)+
-  geom_point(data=Hw, aes(x=Type, y=mean, colour="#FDB863"),alpha=0.5, show.legend= FALSE)+
+  geom_boxplot(data=Hw, aes(x=Type, y=mean, fill=Type),alpha=0.5)+
+  geom_point(data=Hw, aes(x=Type, y=mean, colour=Type),alpha=0.5, show.legend= FALSE)+
   theme_bw()+
-  scale_fill_manual(labels = c("Snow", "groundwater", "small creeks", "large creeks", "Columbia River"),
-                    values = c("#FDB863","#B2ABD2", "#6cceea", "#ceea6c", "#80CDC1"))+
-  scale_colour_manual(values = c("#FDB863","#B2ABD2", "#6cceea", "#ceea6c", "#80CDC1"))+
+  scale_x_discrete(limits=c(levels(data2$Type),"Snow")) +
+  scale_fill_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
+  scale_colour_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
   facet_wrap(~~factor(Season, levels=c('Spring', 'Summer', 'Fall')))+
   theme(axis.title.x = element_blank(), axis.text.x=element_blank())
 
@@ -210,16 +210,16 @@ cond_NEON$Type="Snow"
 
 EC_lotic_w_GW_SW<-
   data2 %>% 
-  mutate(Type = factor(Type, levels=c("G", "sCR", "lgCR", "R","Snow"))) %>%
+  #mutate(Type = factor(Type, levels=c("sCR", "lgCR", "R", "G"))) %>%
   ggplot()+
   geom_boxplot(aes(x=Type, y=EC, fill=Type), alpha=0.5)+
-  geom_boxplot(data=cond_NEON, aes(x=Type, y=precipConductivity, fill="#FDB863"),alpha=0.5)+
   geom_point(aes(x=Type, y=EC, colour=Type),show.legend= FALSE)+
-  geom_point(data=cond_NEON, aes(x=Type, y=precipConductivity, colour="#FDB863"),alpha=0.5, show.legend= FALSE)+
+  geom_boxplot(data=cond_NEON, aes(x=Type, y=precipConductivity, fill=Type),alpha=0.5)+
+  geom_point(data=cond_NEON, aes(x=Type, y=precipConductivity, colour=Type),alpha=0.5, show.legend= FALSE)+
   theme_bw()+
-  scale_fill_manual(labels = c("Snow", "groundwater", "small creeks", "large creeks", "Columbia River"),
-                    values = c("#FDB863","#B2ABD2", "#6cceea", "#ceea6c", "#80CDC1"))+
-  scale_colour_manual(values = c("#FDB863","#B2ABD2", "#6cceea", "#ceea6c", "#80CDC1"))+
+  scale_x_discrete(limits=c(levels(data2$Type),"Snow")) +
+  scale_fill_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
+  scale_colour_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
   facet_wrap(~~factor(Season, levels=c('Spring', 'Summer', 'Fall')))+
   theme(axis.title.x = element_blank(), axis.text.x=element_blank())
 
@@ -231,4 +231,83 @@ ggsave(lotic_all_vars_w_GW_SW, file = "output/lotic_all_vars_w_GW_SW.png", width
 
 
 ###we want to estimate the snow composition at the creek and river sites, not just at the wetland locations--> so need those co-ordinates
+all.sites<-read.csv("clean data/GIS coordinates for all CRD sites.csv")
 
+data2_utm<-left_join(data2, all.sites, join_by(Site.Number == Site.number), multiple = "all")
+
+##-----------a mixing model with isotopes and EC to test the proportion of groundwater and snowmelt------------
+##-----------------------------contributing to the creeks-----------------------------------
+
+mix= matrix(c(data %>% filter ( Type == "sCR" |Type == "lgCR") %>% .$O18, 
+              data %>% filter ( Type == "sCR" |Type == "lgCR") %>% .$H2,
+              data %>% filter ( Type == "sCR" |Type == "lgCR") %>% .$EC), 
+            ncol=3, nrow=nrow(data %>% filter ( Type == "sCR" |Type == "lgCR")))
+colnames(mix)= c("18O","2H", "EC")
+
+s_names = c("Groundwater", "Snowmelt") ##only need to run once, same for all seasons
+s_means = matrix(c(data %>% filter ( Type == "G") %>% .$O18 %>% mean(),Ow$mean %>% mean(),
+                      data %>% filter ( Type == "G") %>% .$H2 %>% mean(), Hw$mean %>% mean(), 
+                      data %>% filter ( Type == "G") %>% .$EC %>% mean(), cond_NEON$precipConductivity%>% mean()), ncol=3, nrow=2)
+s_sds = matrix(c(data %>% filter ( Type == "G") %>% .$O18 %>% sd(),Ow$mean %>% sd(),
+                    data %>% filter ( Type == "G") %>% .$H2 %>% sd(), Hw$mean %>% sd(), 
+                    data %>% filter ( Type == "G") %>% .$EC %>% sd(), cond_NEON$precipConductivity%>% sd()), ncol=3, nrow=2)
+
+grp = (c(data2 %>% filter ( Type == "sCR" |Type == "lgCR")%>%.$Season))
+
+##run model
+
+simmr_creeks = simmr_load(mixtures=mix,
+                          source_names=s_names,
+                          source_means=s_means,
+                          source_sds=s_sds,
+                          group=grp)
+
+
+
+plot(simmr_creeks,tracers=c(1,2), groups=1:3) 
+plot(simmr_creeks,tracers=c(1,3),groups=1:3)
+ggplotly(plot(simmr_creeks,tracers=c(1,3)))
+plot(simmr_creeks,tracers=c(2,3),groups=1:3)
+
+simmr_out = simmr_mcmc(simmr_creeks)
+summary(simmr_out,type='diagnostics')
+posterior_predictive(simmr_out)
+prior_viz(simmr_out)
+simmr_results_creeks<-summary(simmr_out)
+stats<-summary(simmr_out,type='statistics', group=1:3)
+quants<-summary(simmr_out_spring,type='quantiles', group=c(1:25))
+plot(simmr_out,type='density')
+plot(simmr_out,type='boxplot', group=1)
+plot(simmr_out,type='matrix')
+
+
+simmr_results_table<- function (ngroups,tracer) {
+  results_table=matrix(data=NA, ncol=2, nrow=ngroups)
+  for (i in 1:ngroups) {
+    results_table[i,1]= stats$statistics[[i]][[2,1]]
+    results_table[i,2]= stats$statistics[[i]][[2,2]]
+  }
+  colnames(results_table)= c(paste(tracer,"_mean"), paste(tracer,"_sd"))
+  rownames(results_table) <- c(unique(grp))
+  return(results_table)
+}
+
+season_creek_results<-simmr_results_table(ngroups=3, tracer="Groundwater")
+write.csv(season_creek_results, file="output/creeks_season_proportions.csv")
+
+###---------run again, each creeks individually---------------
+grp = as.integer(1:nrow(data %>% filter ( Type == "sCR" |Type == "lgCR")))
+
+simmr_creeks_ind = simmr_load(mixtures=mix,
+                          source_names=s_names,
+                          source_means=s_means,
+                          source_sds=s_sds,
+                          group=grp)
+simmr_out = simmr_mcmc(simmr_creeks_ind)
+stats<-summary(simmr_out,type='statistics', group=1:24)
+ind_creek_results<-simmr_results_table(ngroups=24, tracer="Groundwater")
+ind_creek_results<-cbind(ind_creek_results, data %>% filter ( Type == "sCR" |Type == "lgCR"))
+write.csv(ind_creek_results, file="output/ind_creek_results_prop.csv")
+
+###------------making some tern plots----------
+library(ggtern)
