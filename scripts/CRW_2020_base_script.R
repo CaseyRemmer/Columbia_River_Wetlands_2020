@@ -306,8 +306,19 @@ simmr_creeks_ind = simmr_load(mixtures=mix,
 simmr_out = simmr_mcmc(simmr_creeks_ind)
 stats<-summary(simmr_out,type='statistics', group=1:24)
 ind_creek_results<-simmr_results_table(ngroups=24, tracer="Groundwater")
-ind_creek_results<-cbind(ind_creek_results, data %>% filter ( Type == "sCR" |Type == "lgCR"))
+ind_creek_results<-cbind(ind_creek_results, data2 %>% filter ( Type == "sCR" |Type == "lgCR"))
 write.csv(ind_creek_results, file="output/ind_creek_results_prop.csv")
 
-###------------making some tern plots----------
-library(ggtern)
+###------------making some plots----------
+
+ind_creek_results$Snowmelt_mean<-1-ind_creek_results$`Groundwater _mean`
+head(ind_creek_results)
+
+perc_GW_creeks_plot<-
+  ind_creek_results %>% group_by(Season) %>%
+  mutate(Season = factor(Season, levels=c("Spring", "Summer", "Fall"))) %>%
+  ggplot(aes(y=Site.Name, x=Season, fill=`Groundwater _mean`))+
+  geom_tile(color= "white",linewidth=0.1)+
+  scale_fill_gradient2(midpoint=mean(ind_creek_results$`Groundwater _mean`),low="#FDB863", mid="#B2ABD2", high="blue")
+
+ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, height=190, units = "mm",bg = 'white')
