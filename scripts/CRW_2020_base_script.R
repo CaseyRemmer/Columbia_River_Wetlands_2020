@@ -19,7 +19,7 @@ data %>%
   ##then gglot boxplots
 
 
-data<-read.csv("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/clean data/CRW_2020_cleaned_data_for_analysis.csv")
+data<-read.csv("CRW_2020_cleaned_data_for_analysis.csv")
 head(data)
 
 #comparing the small creeks, large creeks and rivers
@@ -133,12 +133,12 @@ O18_lotic_w_GW_SW<-                                        ###this one has the r
   ggplot()+
   geom_boxplot(aes(x=Type, y=O18, fill=Type), alpha=0.5)+
   geom_point(aes(x=Type, y=O18, colour=Type),show.legend= FALSE)+
-  geom_boxplot(data=Ow, aes(x=Type, y=mean, fill=Type),alpha=0.5)+
+  geom_boxplot(data=Ow, aes(x=Type, y=mean, fill=Type),alpha=0.5)+ ##mean for full season snow, O3 for only march snow
   geom_point(data=Ow, aes(x=Type, y=mean, colour=Type),alpha=0.5, show.legend= FALSE)+
   theme_bw()+
   scale_x_discrete(limits=c(levels(data2$Type),"Snow")) +
-  scale_fill_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
-  scale_colour_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
+  scale_fill_manual(values = c("#B2ABD2","#ceea6c", "#80CDC1","#6cceea","#FDB863"))+
+  scale_colour_manual(values = c("#B2ABD2","#ceea6c", "#80CDC1","#6cceea","#FDB863"))+
   facet_wrap(~~factor(Season, levels=c('Spring', 'Summer', 'Fall')))+
   theme(axis.title.x = element_blank(), axis.text.x=element_blank())
 
@@ -180,8 +180,11 @@ for (i in 1:5) {
 }
 
 write.csv(Hw, file = "H_winter.csv")
-for(i in 1:nrow(Hw)){Hw$mean[i] = Hw[i,2:6] %>% as.numeric() %>% mean()}
+
+Hw<-read.csv("H_winter.csv")
+for(i in 1:nrow(Hw)){Hw$mean[i] = Hw[i,3:7] %>% as.numeric() %>% mean()}
 Hw$Type = "Snow"
+
 
 
 H2_lotic_w_GW_SW<-
@@ -194,8 +197,8 @@ H2_lotic_w_GW_SW<-
   geom_point(data=Hw, aes(x=Type, y=mean, colour=Type),alpha=0.5, show.legend= FALSE)+
   theme_bw()+
   scale_x_discrete(limits=c(levels(data2$Type),"Snow")) +
-  scale_fill_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
-  scale_colour_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
+  scale_fill_manual(values = c("#B2ABD2","#ceea6c", "#80CDC1","#6cceea","#FDB863"))+
+  scale_colour_manual(values = c("#B2ABD2","#ceea6c", "#80CDC1","#6cceea","#FDB863"))+
   facet_wrap(~~factor(Season, levels=c('Spring', 'Summer', 'Fall')))+
   theme(axis.title.x = element_blank(), axis.text.x=element_blank())
 
@@ -218,8 +221,8 @@ EC_lotic_w_GW_SW<-
   geom_point(data=cond_NEON, aes(x=Type, y=precipConductivity, colour=Type),alpha=0.5, show.legend= FALSE)+
   theme_bw()+
   scale_x_discrete(limits=c(levels(data2$Type),"Snow")) +
-  scale_fill_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
-  scale_colour_manual(values = c("#6cceea", "#ceea6c", "#80CDC1","#B2ABD2","#FDB863"))+
+  scale_fill_manual(values = c("#B2ABD2","#ceea6c", "#80CDC1","#6cceea","#FDB863"))+
+  scale_colour_manual(values = c("#B2ABD2","#ceea6c", "#80CDC1","#6cceea","#FDB863"))+
   facet_wrap(~~factor(Season, levels=c('Spring', 'Summer', 'Fall')))+
   theme(axis.title.x = element_blank(), axis.text.x=element_blank())
 
@@ -245,11 +248,11 @@ mix= matrix(c(data %>% filter ( Type == "sCR" |Type == "lgCR") %>% .$O18,
 colnames(mix)= c("18O","2H", "EC")
 
 s_names = c("Groundwater", "Snowmelt") ##only need to run once, same for all seasons
-s_means = matrix(c(data %>% filter ( Type == "G") %>% .$O18 %>% mean(),Ow$mean %>% mean(),
-                      data %>% filter ( Type == "G") %>% .$H2 %>% mean(), Hw$mean %>% mean(), 
+s_means = matrix(c(data %>% filter ( Type == "G") %>% .$O18 %>% mean(),Ow$O.3 %>% mean(),
+                      data %>% filter ( Type == "G") %>% .$H2 %>% mean(), Hw$H.3 %>% mean(), 
                       data %>% filter ( Type == "G") %>% .$EC %>% mean(), cond_NEON$precipConductivity%>% mean()), ncol=3, nrow=2)
-s_sds = matrix(c(data %>% filter ( Type == "G") %>% .$O18 %>% sd(),Ow$mean %>% sd(),
-                    data %>% filter ( Type == "G") %>% .$H2 %>% sd(), Hw$mean %>% sd(), 
+s_sds = matrix(c(data %>% filter ( Type == "G") %>% .$O18 %>% sd(),Ow$O.3 %>% sd(),
+                    data %>% filter ( Type == "G") %>% .$H2 %>% sd(), Hw$H.3 %>% sd(), 
                     data %>% filter ( Type == "G") %>% .$EC %>% sd(), cond_NEON$precipConductivity%>% sd()), ncol=3, nrow=2)
 
 grp = (c(data2 %>% filter ( Type == "sCR" |Type == "lgCR")%>%.$Season))
@@ -308,6 +311,7 @@ stats<-summary(simmr_out,type='statistics', group=1:24)
 ind_creek_results<-simmr_results_table(ngroups=24, tracer="Groundwater")
 ind_creek_results<-cbind(ind_creek_results, data2 %>% filter ( Type == "sCR" |Type == "lgCR"))
 write.csv(ind_creek_results, file="output/ind_creek_results_prop.csv")
+ind_creek_results<-read.csv("output/ind_creek_results_prop.csv")
 
 ###------------making some plots----------
 
@@ -317,8 +321,205 @@ head(ind_creek_results)
 perc_GW_creeks_plot<-
   ind_creek_results %>% group_by(Season) %>%
   mutate(Season = factor(Season, levels=c("Spring", "Summer", "Fall"))) %>%
-  ggplot(aes(y=Site.Name, x=Season, fill=`Groundwater _mean`))+
+  ggplot(aes(y=Site.Name, x=Season, fill=`Groundwater._mean`))+
   geom_tile(color= "white",linewidth=0.1)+
-  scale_fill_gradient2(midpoint=mean(ind_creek_results$`Groundwater _mean`),low="#FDB863", mid="#B2ABD2", high="blue")
+  geom_text(aes(label=paste(round(`Groundwater._mean`,2)*100,"%")))+
+  scale_fill_gradient2(midpoint=mean(ind_creek_results$`Groundwater._mean`),low="#FDB863", mid="#B2ABD2", high="blue", limits=c(0.5,1))
+
+ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, height=190, units = "mm",bg = 'white')
+
+
+
+##------##--------main mixing model using River, Precipitation and Groundwater---------------------------
+cond_NEON_Sp<-subset(cond_NEON, date > "2019-04-01" & date < "2019-05-31")
+cond_NEON_S<-subset(cond_NEON, date > "2019-06-01" & date < "2019-07-31")
+cond_NEON_F<-subset(cond_NEON, date > "2019-08-01" & date < "2019-09-30")
+
+EC_data<-read.csv("clean_data/NEON_EC_2020.csv")
+EC_data$collectDate<-as.Date(EC_data$collectDate, format = "%Y-%m-%d") ##converting dates from factor to dates 
+
+gis<-read.csv("clean_data/GIS coordinates for all CRD sites.csv")
+
+data_gis<-left_join(data, gis, by=join_by("Site.Number"=="Site.number"), multiple= "all")
+
+data_gis[1:3,]$Easting=524643
+data_gis[1:3,]$Northing=5656772
+
+data_gis$Sample.Date <- as.Date(data_gis$Sample.Date, format = "%Y-%m-%d")
+
+
+set_season<-
+  function(x,y){
+for (i in 1:nrow(x)){
+  if (x$y[i] >= "2020-04-01" & x$y[i] <= "2020-05-31"){
+    x$Season[i] = "Spring"
+  } else if (x$y[i]>="2020-06-01" & x$y[i] <="2020-07-31"){
+    x$Season[i] = "Summer"
+  } else if (x$y[i]>="2020-08-01" & x$y[i] <="2020-10-30"){
+    x$Season[i] = "Fall" 
+  }
+}
+  }
+    
+set_season(EC_data, collectDate)
+
+EC_spring<-filter(EC_data, collectDate >= "2020-04-01" & collectDate <= "2020-05-31")
+EC_spring1<-subset(EC_spring, select=c(domainID, collectDate, precipConductivity, precipConductivityUncertainty))
+colnames(EC_spring1)<-colnames(cond_NEON_S)
+EC_spring2<-rbind(EC_spring1, cond_NEON_Sp)
+
+EC_summer<-filter(EC_data, collectDate >= "2020-06-01" & collectDate <= "2020-07-31")
+EC_summer1<-subset(EC_summer, select=c(domainID, collectDate, precipConductivity, precipConductivityUncertainty))
+colnames(EC_summer1)<-colnames(cond_NEON_S)
+EC_summer2<-rbind(EC_summer1, cond_NEON_S)
+
+EC_Fall<-filter(EC_data, collectDate >= "2020-08-01" & collectDate <= "2020-09-30")
+EC_fall1<-subset(EC_Fall, select=c(domainID, collectDate, precipConductivity, precipConductivityUncertainty))
+colnames(EC_fall1)<-colnames(cond_NEON_S)
+EC_fall2<-rbind(EC_fall1, cond_NEON_F)
+
+##---- Spring data mixing model--------
+
+
+#----------------------------making the snow H isotopes----------## last years sites
+
+
+
+##extract values of o at sampling points and place in a table
+
+d<-data_gis%>%filter(Season=="Spring")
+Hs_2020<-data.frame(matrix(ncol=6, nrow=nrow(d)))
+Hs_2020[,1]=d$Site.number
+names(Hs_2020)[1]<-"site number"
+d<- d%>% drop_na()
+d2<- st_as_sf(d, coords = c("Easting", "Northing"), crs="+proj=utm +zone=11 +datum=WGS84")
+d2<-st_transform(d2, crs=st_crs(H[[1]]))
+
+for (i in 1:6) {
+  Hs_2020[,i+1]=raster::extract(H[[i]],d2)
+  names(Hs_2020)[i+1]<- paste0("H",i+3)
+}
+
+Os_2020<-data.frame(matrix(ncol=6, nrow=nrow(d)))
+Os_2020[,1]=d$Site.Number
+names(Os_2020)[1]<-"site number"
+
+for (i in 1:6) {
+  Os_2020[,i+1]=raster::extract(O[[i]],d2)
+  names(Os_2020)[i+1]<- paste0("O", i+3)
+}
+
+
+
+mix_model<-
+  function (data,s,mO1,mO2, mH1, mH2){ ##s=season
+
+if (s=="Spring"){
+  ECd<-EC_spring2
+  Od<-c(Os_2020$O4, Os_2020$O5)
+  Hd<-c(Hs_2020$H4, Hs_2020$H5)
+ } else if (s=="Summer"){
+    ECd<-EC_summer2
+    Od<-c(Os_2020$O6, Os_2020$O7)
+    Hd<-c(Hs_2020$H6, Hs_2020$H7)
+} else if ( s=="Fall") {
+    ECd<- EC_fall2
+    Od<-c(Os_2020$O8, Os_2020$O9)
+    Hd<-c(Hs_2020$H8, Hs_2020$H9)
+  }
+
+mix= matrix(c(data %>% filter ( Type == "W" &Season == s) %>% .$O18, 
+              data %>% filter ( Type == "W" &Season == s) %>% .$H2,
+              data %>% filter ( Type == "W" & Season == s) %>% .$EC), 
+            ncol=3, nrow=nrow(data %>% filter ( Type == "W" & Season ==s)))
+colnames(mix)= c("18O","2H", "EC")
+
+s_names = c("River", "Groundwater", "Precipitation") ##only need to run once, same for all seasons
+s_means = matrix(c(data %>% filter (Type == "R"& Season == s)%>% .$O18 %>% mean(),
+                  data %>% filter ( Type == "G"& Season == s) %>% .$O18 %>% mean(),
+                  Od %>% mean(na.rm=TRUE),
+                  data %>% filter ( Type == "R" & Season == s) %>% .$H2 %>% mean(), 
+                  data %>% filter ( Type == "G" & Season == s) %>% .$H2 %>% mean(),
+                  Hd %>% mean(na.rm=TRUE), 
+                  data %>% filter ( Type == "R" & Season == s) %>% .$EC %>% mean(),
+                  data %>% filter ( Type == "G"& Season == s) %>% .$EC %>% mean(),
+                  ECd[[3]]%>% mean()), ncol=3, nrow=3)
+s_sds = matrix(c(data %>% filter (Type == "R"& Season == s)%>% .$O18 %>% sd(),
+               data %>% filter ( Type == "G"& Season == s) %>% .$O18 %>% sd(),
+               Od %>% sd(na.rm=TRUE),
+               data %>% filter ( Type == "R"& Season == s) %>% .$H2 %>% sd(), 
+               data %>% filter ( Type == "G"& Season == s) %>% .$H2 %>% sd(), 
+               Hd %>% sd(na.rm=TRUE), 
+               data %>% filter ( Type == "R" & Season == s) %>% .$EC %>% sd(),
+               data %>% filter ( Type == "G"& Season == s) %>% .$EC %>% sd(),
+               ECd[[3]]%>% sd()), ncol=3, nrow=3)
+
+grp = as.integer(c(1:nrow(data %>% filter ( Type == "W" & Season == s))))
+
+##run model
+
+simmr_in = simmr_load(mixtures=mix,
+                          source_names=s_names,
+                          source_means=s_means,
+                          source_sds=s_sds,
+                          group=grp)
+
+
+
+tracers12<-plot(simmr_in,tracers=c(1,2), groups=1:nrow(data %>% filter ( Type == "W" &Season == s)))
+tracers13<- plot(simmr_in,tracers=c(1,3),groups=1:nrow(data %>% filter ( Type == "W" &Season == s)))
+tracers23<-plot(simmr_in,tracers=c(2,3),groups=1:nrow(data %>% filter ( Type == "W" &Season == s)))
+
+simmr_out = simmr_mcmc(simmr_in)
+summary(simmr_out,type='diagnostics')
+stats<-summary(simmr_out,type='statistics', group=1:nrow(data %>% filter ( Type == "W" &Season == s)))
+stats<<-stats
+file.name<-paste0(s,"_stats",".csv")
+write.csv(stats, file = file.name)
+return(stats)
+  }
+simmr_results_table<- function (ngroups) { ##this is where I am, need to make tables of the results that will be useable in the figure
+  results_table=matrix(data=NA, ncol=6, nrow=ngroups)
+  for (i in 1:ngroups) {
+    results_table[i,1]= stats$statistics[[i]][[2,1]]
+    results_table[i,2]= stats$statistics[[i]][[2,2]]
+    results_table[i,3]= stats$statistics[[i]][[3,1]]
+    results_table[i,4]= stats$statistics[[i]][[3,2]]
+    results_table[i,5]= stats$statistics[[i]][[4,1]]
+    results_table[i,6]= stats$statistics[[i]][[4,2]]
+  }
+  colnames(results_table)= c("mriver","riversd","mgw","gwsd", "mprecip", "precipsd")
+  return(results_table)
+}
+
+mix_model(data, "Spring") ## mixture 5 is outside bounds
+spring_results<-as.data.frame(simmr_results_table(ngroups=36))
+spring_results$site_number<- data %>% filter (Type == "W"& Season == "Spring")%>%.$Site.Number
+
+mix_model(data, "Summer") ##mixture 6 has high EEC
+summer_results<-as.data.frame(simmr_results_table(ngroups=37))
+summer_results$site_number<- data %>% filter (Type == "W"& Season == "Summer")%>%.$Site.Number
+
+mix_model(data, "Fall")
+Fall_results<-as.data.frame(simmr_results_table(ngroups=34))
+summer_results$site_number<- data %>% filter (Type == "W"& Season == "Fall")%>%.$Site.Number
+
+
+write.csv(spring_results, file="output/spring_results_proportions.csv")
+
+
+
+###------------making some plots----------
+
+ind_creek_results$Snowmelt_mean<-1-ind_creek_results$`Groundwater _mean`
+head(ind_creek_results)
+
+perc_GW_creeks_plot<-
+  ind_creek_results %>% group_by(Season) %>%
+  mutate(Season = factor(Season, levels=c("Spring", "Summer", "Fall"))) %>%
+  ggplot(aes(y=Site.Name, x=Season, fill=`Groundwater._mean`))+
+  geom_tile(color= "white",linewidth=0.1)+
+  geom_text(aes(label=paste(round(`Groundwater._mean`,2)*100,"%")))+
+  scale_fill_gradient2(midpoint=mean(ind_creek_results$`Groundwater._mean`),low="#FDB863", mid="#B2ABD2", high="blue", limits=c(0.5,1))
 
 ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, height=190, units = "mm",bg = 'white')
