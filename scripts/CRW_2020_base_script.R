@@ -19,7 +19,8 @@ data %>%
   ##then gglot boxplots
 
 
-data<-read.csv("CRW_2020_cleaned_data_for_analysis.csv")
+data<-read.csv("/clean_data/CRW_2020_cleaned_data_for_analysis.csv")
+data<-read.csv("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/clean_data/CRW_2020_clean_data_for_analysis.csv")
 head(data)
 
 #comparing the small creeks, large creeks and rivers
@@ -331,9 +332,9 @@ ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, 
 
 
 ##------##--------main mixing model using River, Precipitation and Groundwater---------------------------
-cond_NEON_Sp<-subset(cond_NEON, date > "2019-04-01" & date < "2019-05-31")
-cond_NEON_S<-subset(cond_NEON, date > "2019-06-01" & date < "2019-07-31")
-cond_NEON_F<-subset(cond_NEON, date > "2019-08-01" & date < "2019-09-30")
+
+
+
 
 EC_data<-read.csv("clean_data/NEON_EC_2020.csv")
 EC_data$collectDate<-as.Date(EC_data$collectDate, format = "%Y-%m-%d") ##converting dates from factor to dates 
@@ -348,20 +349,8 @@ data_gis[1:3,]$Northing=5656772
 data_gis$Sample.Date <- as.Date(data_gis$Sample.Date, format = "%Y-%m-%d")
 
 
-set_season<-
-  function(x,y){
-for (i in 1:nrow(x)){
-  if (x$y[i] >= "2020-04-01" & x$y[i] <= "2020-05-31"){
-    x$Season[i] = "Spring"
-  } else if (x$y[i]>="2020-06-01" & x$y[i] <="2020-07-31"){
-    x$Season[i] = "Summer"
-  } else if (x$y[i]>="2020-08-01" & x$y[i] <="2020-10-30"){
-    x$Season[i] = "Fall" 
-  }
-}
-  }
-    
-set_season(EC_data, collectDate)
+set_seasons(data_gis)
+data_gis<-x2
 
 EC_spring<-filter(EC_data, collectDate >= "2020-04-01" & collectDate <= "2020-05-31")
 EC_spring1<-subset(EC_spring, select=c(domainID, collectDate, precipConductivity, precipConductivityUncertainty))
@@ -410,6 +399,8 @@ for (i in 1:6) {
 }
 
 
+set_seasons(data)
+data<-x2
 
 mix_model<-
   function (data,s,mO1,mO2, mH1, mH2){ ##s=season
@@ -478,6 +469,7 @@ file.name<-paste0(s,"_stats",".csv")
 write.csv(stats, file = file.name)
 return(stats)
   }
+
 simmr_results_table<- function (ngroups) { ##this is where I am, need to make tables of the results that will be useable in the figure
   results_table=matrix(data=NA, ncol=6, nrow=ngroups)
   for (i in 1:ngroups) {
@@ -492,34 +484,46 @@ simmr_results_table<- function (ngroups) { ##this is where I am, need to make ta
   return(results_table)
 }
 
-mix_model(data, "Spring") ## mixture 5 is outside bounds
+mix_model(data, "Spring") ## mixture 5 is outside bounds, #24 & 2 are questionable-- lots of sites more enriched than precip
 spring_results<-as.data.frame(simmr_results_table(ngroups=36))
 spring_results$site_number<- data %>% filter (Type == "W"& Season == "Spring")%>%.$Site.Number
+write.csv(spring_results, file="output/spring_results_proportions.csv")
 
-mix_model(data, "Summer") ##mixture 6 has high EEC
+mix_model(data, "Summer") ##mixture 6(site 35) has high EEC, 11 (47), 36(137) and 12 (48) have enriched isotopes
 summer_results<-as.data.frame(simmr_results_table(ngroups=37))
 summer_results$site_number<- data %>% filter (Type == "W"& Season == "Summer")%>%.$Site.Number
+write.csv(summer_results, file="output/summer_results_proportions.csv")
 
 mix_model(data, "Fall")
 Fall_results<-as.data.frame(simmr_results_table(ngroups=34))
-summer_results$site_number<- data %>% filter (Type == "W"& Season == "Fall")%>%.$Site.Number
+Fall_results$site_number<- data %>% filter (Type == "W"& Season == "Fall")%>%.$Site.Number
+write.csv(Fall_results, file="output/fall_results_proportions.csv")
 
 
-write.csv(spring_results, file="output/spring_results_proportions.csv")
 
+###the spring isotopes are very enriched- could be the results of evaporation-- might be necessary to calculate the dI
+##to get a true sense of the inputs, otherwise it just comes out as high precipitation because of the enriched isotopes
+## the spring precip source is also more depleted in the spring, so that pushes the values even further to that outcome
+## ie. the wetlands are more enriched than precip (which isnt really possible)
+###so next step is to calculate dI, using the approach used for the Prarie Potholes, and then run the model using the dIs
+##after that is done, I need to figure out how I made the colours for the tern plots and finalize those
+## present a set of figures and decide on the main points of the results
 
 
 ###------------making some plots----------
 
-ind_creek_results$Snowmelt_mean<-1-ind_creek_results$`Groundwater _mean`
-head(ind_creek_results)
-
-perc_GW_creeks_plot<-
-  ind_creek_results %>% group_by(Season) %>%
-  mutate(Season = factor(Season, levels=c("Spring", "Summer", "Fall"))) %>%
-  ggplot(aes(y=Site.Name, x=Season, fill=`Groundwater._mean`))+
-  geom_tile(color= "white",linewidth=0.1)+
-  geom_text(aes(label=paste(round(`Groundwater._mean`,2)*100,"%")))+
-  scale_fill_gradient2(midpoint=mean(ind_creek_results$`Groundwater._mean`),low="#FDB863", mid="#B2ABD2", high="blue", limits=c(0.5,1))
-
-ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, height=190, units = "mm",bg = 'white')
+ggtern(data=spring_results,aes(x=mriver,y=mgw, z=mprecip)) +
+  theme_bw()+
+  theme_showarrows()+
+  geom_point(aes(color = site_number), size=3) +
+  geom_text(aes(x=mriver+0.04,y=mgw, z=mprecip),label=spring_results$site_number)+
+  #geom_point(data=as.data.frame(p_post),aes(x=River,y=Groundwater, z=Precipitation))+
+  #geom_mean_ellipse(data=as.data.frame(p_post1),aes(x=River,y=Groundwater, z=Precipitation))
+  geom_errorbarL(aes(Lmin=mriver-riversd, Lmax=mriver+riversd, colour= site_number), alpha=0.3, lwd=0.5)+
+  geom_errorbarT(aes(Tmin=mgw+gwsd,Tmax=mgw-gwsd,colour=site_number),alpha=0.3, lwd=0.5)+
+  geom_errorbarR(aes(Rmin=mprecip+precipsd,Rmax=mprecip-precipsd,colour=site_number),alpha=0.03, lwd=0.5)+
+  labs(x="River", xarrow= "",y="Groundwater", yarrow = "", z="Precipitation", zarrow="Precipitation")+
+  theme(legend.position="bottom",
+        legend.justification=c(0.5,0.5),
+        legend.direction="horizontal",legend.box="horizontal",
+        legend.box.just="top",legend.key.size = unit(0.5, "cm"))
