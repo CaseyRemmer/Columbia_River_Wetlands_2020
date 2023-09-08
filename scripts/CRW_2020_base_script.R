@@ -343,6 +343,83 @@ ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, 
 ##after that is done, I need to figure out how I made the colours for the tern plots and finalize those
 ## present a set of figures and decide on the main points of the results
 
+##need to calculate DI , need temp and RH to do that.
+# next step is to compare BRISCO and GOLDEN climate stations, decide which to use for T and rh
+## next step is to calculate the E/I's using the new rh values
+
+
+
+EI<-matrix(ncol=11, nrow=nrow(data))
+colnames(EI)<-c("EI", "starO", "starH", "sslO", "sslH", "EO", "EH", "slope", "input", "IO", "IH")
+
+isotopic_framework<-
+function (data, temp, rh){
+for (i in 1:nrow(data)){
+  K<-Temperature[i]
+  rh<-rh[i]
+  # α*
+  a18O<-exp((-7.685+6.7123*((10^3)/K)-1.664*((10^6)/(K^2))+0.35041*((10^9)/(K^3)))/1000)
+  a2H<- exp((1158.8*(K^3/10^9)-1620.1*(K^2/10^6)+794.84*(K/10^3)-161.04+2.9992*(10^9/K^3))/1000)
+  ##ε*
+  e18O<-a18O-1
+  e2H<-a2H-1
+  #εk
+  ek18O<-0.0142*(1-rh)
+  ek2H<-0.0125*(1-rh)
+  ##alternate version dAS for Prarie pothole (sSSL calculated)
+  #needs dPs
+  dPs18O<-Os_2020 %>% filter (Site.Number== data$Site.Number[i]) %>% .[,2:6] %>% as.numeric(.) %>% mean() ##need to Hs_2020 and Os_2020 from below
+  dPs2H<-Hs_2020 %>% filter (Site.Number== data$Site.Number[i]) %>% .[,2:6] %>% as.numeric(.) %>% mean()
+  mean(Hpd)
+  
+  dPs2H<-data$Ps.2H.[i]
+  dAs18O<-(dPs18O-e18O)/a18O
+  dAs2H<-(dPs2H-e2H)/a2H
+  #δp
+  dp18O<-data$P.18O.[i]
+  dp2H<-data$P.2H.[i]
+  
+  #δ*
+  dstar18O<-((rh*dAs18O)+ek18O+(e18O/a18O))/(rh-ek18O-(e18O/a18O))
+  dstar2H<-(rh*dAs2H+ek2H+e2H/a2H)/(rh-ek2H-e2H/a2H)
+  EI[i,2]<-dstar18O
+  EI[i,3]<-dstar2H
+  
+  
+  #δSSL ##for Prarie potholes, in the PAD this comes from PAD18
+  dssl18O<-a18O*dp18O*(1-rh+ek18O)+a18O*rh*dAs18O+a18O*ek18O+e18O
+  dssl2H<-a2H*dp2H*(1-rh+ek2H)+a2H*rh*dAs2H+a2H*ek2H+e2H
+  EI[i,4]<- dssl18O
+  EI[i,5]<- dssl2H
+  
+  #δE
+  dE18O<-((data$Opm[i]-e18O)/a18O-rh*dAs18O-ek18O)/(1-rh+ek18O)
+  dE2H<-((data$Hpm[i]-e2H)/a2H-rh*dAs2H-ek2H)/(1-rh+ek2H)
+  EI[i,6]<- dE18O
+  EI[i,7]<-dE2H
+  
+  ##slope and intercept
+  #slope<-(dstar2H-dp2H)/(dstar18O-dp18O) ##PAD
+  slope<-(dE2H-data$Hpm[i])/(dE18O-data$Opm[i])
+  int<-(data$Hpm[i]*1000)-(slope*(data$Opm[i]*1000))
+  EI[i,8]<- slope
+  EI[i,9]<- int
+  
+  #input water isotopic composition
+  #dI18O<-((-19.2/1000)-(int))/(slope-6.7) ##PAD
+  ##from Prarie potholes 
+  dI18O<-(int-10)/(8-slope)
+  dI2H<-(slope*dI18O)+int
+  EI[i,10]<- dI18O
+  EI[i,11]<- dI2H
+  
+  ##E/I
+  ei<-((dI18O/1000)-data$Opm[i])/(dE18O-data$Opm[i])
+  
+  EI[i,1]<-ei
+  
+}
+
 
 
 EC_data<-read.csv("clean_data/NEON_EC_2020.csv")
@@ -389,14 +466,14 @@ EC_fall2<-rbind(EC_fall1, cond_NEON_F)
 
 #----------------------------making the snow H isotopes----------## last years sites
 
-Locations & numbers of sites for CW 2020_csvofsites
+#Locations & numbers of sites for CW 2020_csvofsites
 
 ##extract values of o at sampling points and place in a table
 
 d<-data_gis%>%filter(Season=="Spring")
 Hs_2020<-data.frame(matrix(ncol=6, nrow=nrow(d)))
-Hs_2020[,1]=d$Site.number
-names(Hs_2020)[1]<-"site number"
+Hs_2020[,1]=d$Site.Number
+names(Hs_2020)[1]<-"Site.Number"
 d<- d%>% drop_na()
 d2<- st_as_sf(d, coords = c("Easting", "Northing"), crs="+proj=utm +zone=11 +datum=WGS84")
 d2<-st_transform(d2, crs=st_crs(H[[1]]))
@@ -408,7 +485,7 @@ for (i in 1:6) {
 
 Os_2020<-data.frame(matrix(ncol=6, nrow=nrow(d)))
 Os_2020[,1]=d$Site.Number
-names(Os_2020)[1]<-"site number"
+names(Os_2020)[1]<-"Site.Number"
 
 for (i in 1:6) {
   Os_2020[,i+1]=raster::extract(O[[i]],d2)
@@ -417,7 +494,7 @@ for (i in 1:6) {
 
 
 set_seasons(data)
-data<-x2
+
 
 
 ##function for running the mixing model
