@@ -46,12 +46,12 @@ dd_plt<-
 ##adding in a categorical variable called "Season" to make subsetting the data smoother
 
 for (i in 1:nrow(dt_2020)){
- if (dt_2020$Sample.Date[i] >= "2020-04-01" & dt_2020$Sample.Date[i] <= "2020-05-31"){
-   dt_2020$Season[i]="Sp"}
+  if (dt_2020$Sample.Date[i] >= "2020-04-01" & dt_2020$Sample.Date[i] <= "2020-05-31"){
+    dt_2020$Season[i]="Sp"}
   else if (dt_2020$Sample.Date[i] >= "2020-06-01" & dt_2020$Sample.Date[i] <= "2020-07-31"){
-     dt_2020$Season[i]="Sm"} 
+    dt_2020$Season[i]="Sm"} 
   else if (dt_2020$Sample.Date[i] >= "2020-08-01"){
-       dt_2020$Season[i]="F"}
+    dt_2020$Season[i]="F"}
 }
 view(dt_2020)
 write.csv(dt_2020, "data_2020_R_checkpoint1.csv")
@@ -122,15 +122,15 @@ extent(dt_2020_grnd)
 
 crop_iso<-
   function(x,y){
-  for (i in 1:length(x)){
-    b<-crop(x[[i]],extent(y))
-    x[[i]]<-b
-  }
-crop_result<<-x
+    for (i in 1:length(x)){
+      b<-crop(x[[i]],extent(y))
+      x[[i]]<-b
     }
+    crop_result<<-x
+  }
 
 crop_iso(bigO,dt_2020_grnd)
- O<-crop_result ##have to save the function output
+O<-crop_result ##have to save the function output
 
 crop_iso(bigH,dt_2020_grnd)
 H<-crop_result
@@ -140,18 +140,18 @@ H<-crop_result
 precip_extraction<-function(x,y){
   c<-NA
   for (i in 1:2){
-   b<-raster::extract(x[[i]], y)
-   c<-append(c,b)
-   sp<-mean(c, na.rm=TRUE)
-   sp.sd<-sd(c,na.rm=TRUE)
+    b<-raster::extract(x[[i]], y)
+    c<-append(c,b)
+    sp<-mean(c, na.rm=TRUE)
+    sp.sd<-sd(c,na.rm=TRUE)
   }
   c<-NA
-for (i in 3:4){
-      b<-raster::extract(x[[i]], y)
-      c<-append(c,b)
-      sm<-mean(c,na.rm=TRUE)
-      sm.sd<-sd(c,na.rm=TRUE)
-}
+  for (i in 3:4){
+    b<-raster::extract(x[[i]], y)
+    c<-append(c,b)
+    sm<-mean(c,na.rm=TRUE)
+    sm.sd<-sd(c,na.rm=TRUE)
+  }
   c<-NA
   for (i in 5:6){
     b<-raster::extract(x[[i]], y)
@@ -159,15 +159,15 @@ for (i in 3:4){
     f<-mean(c,na.rm=TRUE)
     f.sd<-sd(c,na.rm=TRUE)
   }
-result.mean<<-c(sp,sm,f)
-result.sd<<-c(sp.sd,sm.sd,f.sd)
-result.mean<-result.mean %>% as.data.frame()
-result.sd<-result.sd %>% as.data.frame()
-row.names(result.mean)<-c("Sp", "Sm", "F")
-row.names(result.sd)<-c("Sp.sd", "Sm.sd", "F.sd")
-output.mean<<-result.mean
-output.sd<<-result.sd
-  }
+  result.mean<<-c(sp,sm,f)
+  result.sd<<-c(sp.sd,sm.sd,f.sd)
+  result.mean<-result.mean %>% as.data.frame()
+  result.sd<-result.sd %>% as.data.frame()
+  row.names(result.mean)<-c("Sp", "Sm", "F")
+  row.names(result.sd)<-c("Sp.sd", "Sm.sd", "F.sd")
+  output.mean<<-result.mean
+  output.sd<<-result.sd
+}
 
 precip_extraction(O,dt_2020_grnd)
 precip_mean_O<-output.mean
@@ -197,79 +197,79 @@ sns<-c("Sp", "Sm", "F")
 results_2020<-list() ##make sure this is an emply list to begin
 
 for (i in 1:3){
-W_dt<-dt_2020 %>% filter (Season == sns[i] & Type == "W")
-R_dt<-dt_2020 %>% filter (Season == sns[i] & Type == "R")
-G_dt<-dt_2020 %>% filter (Season == sns[i] & Type == "G")
-
-
-mix= matrix(c(W_dt$O18, W_dt$H2, W_dt$EC), ncol=3, nrow=nrow(W_dt))
-colnames(mix)= c("O18","H2", "EC")
-
-s_names = c("River", "Groundwater", "Precipitation") ##only need to run once, same for all seasons
-s_means = matrix(c(mean(R_dt$O18), mean(G_dt$O18), precip_mean_O[i,],  
-                      mean(R_dt$H2), mean(G_dt$H2), precip_mean_H[i,], 
-                      mean(R_dt$EC), mean(G_dt$EC), mean(EC_dt[[i]][,3])), 
-                      ncol=3, nrow=3)
-
-s_sds = matrix(c(sd(R_dt$O18), sd(G_dt$O18),precip_sd_O[i,],
-                    sd(R_dt$H2), sd(G_dt$H2), precip_sd_H[i,] ,
-                    sd(R_dt$EC), sd(G_dt$EC), sd(EC_dt[[i]][,4])), 
-                    ncol=3, nrow=3)
-grp = as.integer(c(1:nrow(W_dt)))
-
-
-simmr_ = simmr_load(mixtures=mix,
-                          source_names=s_names,
-                          source_means=s_means,
-                          source_sds=s_sds,
-                          group = grp)
-
-file_name <- paste0("tracer_plot_12", sns[i], ".jpeg")
-jpeg(file=file_name)
-plot(simmr_,tracers=c(1,2))
-dev.off()
-
-file_name <- paste0("tracer_plot_13", sns[i], ".jpeg")
-jpeg(file=file_name)
-plot(simmr_,tracers=c(1,3))
-dev.off()
-
-file_name <- paste0("tracer_plot_23", sns[i], ".jpeg")
-jpeg(file=file_name)
-plot(simmr_,tracers=c(2,3))
-dev.off()
-
-simmr_out = simmr_mcmc(simmr_)
-
-stats<-summary(simmr_out,type='statistics', group=1:nrow(W_dt))
-river=matrix(data=NA, ncol=2, nrow=nrow(W_dt))
+  W_dt<-dt_2020 %>% filter (Season == sns[i] & Type == "W")
+  R_dt<-dt_2020 %>% filter (Season == sns[i] & Type == "R")
+  G_dt<-dt_2020 %>% filter (Season == sns[i] & Type == "G")
+  
+  
+  mix= matrix(c(W_dt$O18, W_dt$H2, W_dt$EC), ncol=3, nrow=nrow(W_dt))
+  colnames(mix)= c("O18","H2", "EC")
+  
+  s_names = c("River", "Groundwater", "Precipitation") ##only need to run once, same for all seasons
+  s_means = matrix(c(mean(R_dt$O18), mean(G_dt$O18), precip_mean_O[i,],  
+                     mean(R_dt$H2), mean(G_dt$H2), precip_mean_H[i,], 
+                     mean(R_dt$EC), mean(G_dt$EC), mean(EC_dt[[i]][,3])), 
+                   ncol=3, nrow=3)
+  
+  s_sds = matrix(c(sd(R_dt$O18), sd(G_dt$O18),precip_sd_O[i,],
+                   sd(R_dt$H2), sd(G_dt$H2), precip_sd_H[i,] ,
+                   sd(R_dt$EC), sd(G_dt$EC), sd(EC_dt[[i]][,4])), 
+                 ncol=3, nrow=3)
+  grp = as.integer(c(1:nrow(W_dt)))
+  
+  
+  simmr_ = simmr_load(mixtures=mix,
+                      source_names=s_names,
+                      source_means=s_means,
+                      source_sds=s_sds,
+                      group = grp)
+  
+  file_name <- paste0("tracer_plot_12", sns[i], ".jpeg")
+  jpeg(file=file_name)
+  plot(simmr_,tracers=c(1,2))
+  dev.off()
+  
+  file_name <- paste0("tracer_plot_13", sns[i], ".jpeg")
+  jpeg(file=file_name)
+  plot(simmr_,tracers=c(1,3))
+  dev.off()
+  
+  file_name <- paste0("tracer_plot_23", sns[i], ".jpeg")
+  jpeg(file=file_name)
+  plot(simmr_,tracers=c(2,3))
+  dev.off()
+  
+  simmr_out = simmr_mcmc(simmr_)
+  
+  stats<-summary(simmr_out,type='statistics', group=1:nrow(W_dt))
+  river=matrix(data=NA, ncol=2, nrow=nrow(W_dt))
   for (p in 1:nrow(W_dt)){
-        river[p,] = stats$statistics[[p]][2,]
+    river[p,] = stats$statistics[[p]][2,]
   }
-row.names(river)<-W_dt$Site.Number
-colnames(river)<-c("river_mean", "river_sd")
-gw=matrix(data=NA, ncol=2, nrow=nrow(W_dt))
-for (p in 1:nrow(W_dt)){
-  gw[p,] = stats$statistics[[p]][3,] 
-}
-row.names(gw)<-W_dt$Site.Number
-colnames(gw)<-c("gw_mean", "gw_sd")
-precip=matrix(data=NA, ncol=2, nrow=nrow(W_dt))
-for (p in 1:nrow(W_dt)){
-  precip[p,] = stats$statistics[[p]][4,] 
-}
-row.names(precip)<-W_dt$Site.Number
-colnames(precip)<-c("precip_mean", "precip_sd")
-
-run_results<-cbind(river,gw,precip)
-
-results_2020[[i]]<-run_results
-
+  row.names(river)<-W_dt$Site.Number
+  colnames(river)<-c("river_mean", "river_sd")
+  gw=matrix(data=NA, ncol=2, nrow=nrow(W_dt))
+  for (p in 1:nrow(W_dt)){
+    gw[p,] = stats$statistics[[p]][3,] 
+  }
+  row.names(gw)<-W_dt$Site.Number
+  colnames(gw)<-c("gw_mean", "gw_sd")
+  precip=matrix(data=NA, ncol=2, nrow=nrow(W_dt))
+  for (p in 1:nrow(W_dt)){
+    precip[p,] = stats$statistics[[p]][4,] 
+  }
+  row.names(precip)<-W_dt$Site.Number
+  colnames(precip)<-c("precip_mean", "precip_sd")
+  
+  run_results<-cbind(river,gw,precip)
+  
+  results_2020[[i]]<-run_results
+  
 }
 
 results_2020
 for(i in 1:3){
-results_2020[[i]]<-results_2020[[i]]%>% as.data.frame%>%rownames_to_column()
+  results_2020[[i]]<-results_2020[[i]]%>% as.data.frame%>%rownames_to_column()
 }
 
 ##making plots
@@ -294,22 +294,22 @@ for (i in 1:3){
   colr_list[[i]]<-colr}
 
 for (i in 1:3){
-tern_plt<-
-  ggtern(data=as.data.frame(results_2020[[i]]),aes(x=river_mean,y=gw_mean, z=precip_mean, color= rowname)) +
-  scale_color_manual(values=rgb2hex(
-    r=round(results_2020[[i]]$gw_mean*255, 0),
-    g=round(results_2020[[i]]$river_mean*255,0),
-    b=round(results_2020[[i]]$precip_mean*255,0)))+
-  theme_bw()+
-  theme_showarrows()+
-  geom_point(size=3) +
-  geom_text(aes(label = rowname, x=river_mean,y=gw_mean+0.075, z=precip_mean), size = 3)+
-  labs(x="", xarrow= "River",y="", yarrow = "Groundwater", z="", zarrow="Precipitation")+
-  theme(legend.position="none")
-
-file_name <- paste0("tern_plot", sns[i], ".pdf")
-#ggsave(plot=last_plot(), filename=file_name)
-tplots[i]<-tern_plt
+  tern_plt<-
+    ggtern(data=as.data.frame(results_2020[[i]]),aes(x=river_mean,y=gw_mean, z=precip_mean, color= rowname)) +
+    scale_color_manual(values=rgb2hex(
+      r=round(results_2020[[i]]$gw_mean*255, 0),
+      g=round(results_2020[[i]]$river_mean*255,0),
+      b=round(results_2020[[i]]$precip_mean*255,0)))+
+    theme_bw()+
+    theme_showarrows()+
+    geom_point(size=3) +
+    geom_text(aes(label = rowname, x=river_mean,y=gw_mean+0.075, z=precip_mean), size = 3)+
+    labs(x="", xarrow= "River",y="", yarrow = "Groundwater", z="", zarrow="Precipitation")+
+    theme(legend.position="none")
+  
+  file_name <- paste0("tern_plot", sns[i], ".pdf")
+  #ggsave(plot=last_plot(), filename=file_name)
+  tplots[i]<-tern_plt
 }
 
 plts3<-

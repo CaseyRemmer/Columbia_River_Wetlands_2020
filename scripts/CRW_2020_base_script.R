@@ -334,14 +334,31 @@ ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, 
 ##------##--------main mixing model using River, Precipitation and Groundwater---------------------------
 
 
+##
+###the spring isotopes are very enriched- could be the results of evaporation-- might be necessary to calculate the dI
+##to get a true sense of the inputs, otherwise it just comes out as high precipitation because of the enriched isotopes
+## the spring precip source is also more depleted in the spring, so that pushes the values even further to that outcome
+## ie. the wetlands are more enriched than precip (which isnt really possible)
+###so next step is to calculate dI, using the approach used for the Prarie Potholes, and then run the model using the dIs
+##after that is done, I need to figure out how I made the colours for the tern plots and finalize those
+## present a set of figures and decide on the main points of the results
+
 
 
 EC_data<-read.csv("clean_data/NEON_EC_2020.csv")
 EC_data$collectDate<-as.Date(EC_data$collectDate, format = "%Y-%m-%d") ##converting dates from factor to dates 
 
+
 gis<-read.csv("clean_data/GIS coordinates for all CRD sites.csv")
 
+gis2<-read.csv("raw data/Locations & numbers of sites for CW 2020_csvofsites.csv")
+gis2<-gis2[,-(5:7)]
+names(gis2)<-c("Site.Number","Site.Name","Easting", "Northing")
+gis2$Northing<-as.integer(gis2$Northing)
+
 data_gis<-left_join(data, gis, by=join_by("Site.Number"=="Site.number"), multiple= "all")
+data_gis<-rows_patch(data_gis, gis2, by= "Site.Number")
+
 
 data_gis[1:3,]$Easting=524643
 data_gis[1:3,]$Northing=5656772
@@ -350,7 +367,7 @@ data_gis$Sample.Date <- as.Date(data_gis$Sample.Date, format = "%Y-%m-%d")
 
 
 set_seasons(data_gis)
-data_gis<-x2
+data_gis<-set_seasons(data_gis)
 
 EC_spring<-filter(EC_data, collectDate >= "2020-04-01" & collectDate <= "2020-05-31")
 EC_spring1<-subset(EC_spring, select=c(domainID, collectDate, precipConductivity, precipConductivityUncertainty))
@@ -372,7 +389,7 @@ EC_fall2<-rbind(EC_fall1, cond_NEON_F)
 
 #----------------------------making the snow H isotopes----------## last years sites
 
-
+Locations & numbers of sites for CW 2020_csvofsites
 
 ##extract values of o at sampling points and place in a table
 
@@ -402,6 +419,8 @@ for (i in 1:6) {
 set_seasons(data)
 data<-x2
 
+
+##function for running the mixing model
 mix_model<-
   function (data,s,mO1,mO2, mH1, mH2){ ##s=season
 
@@ -501,18 +520,9 @@ write.csv(Fall_results, file="output/fall_results_proportions.csv")
 
 
 
-###the spring isotopes are very enriched- could be the results of evaporation-- might be necessary to calculate the dI
-##to get a true sense of the inputs, otherwise it just comes out as high precipitation because of the enriched isotopes
-## the spring precip source is also more depleted in the spring, so that pushes the values even further to that outcome
-## ie. the wetlands are more enriched than precip (which isnt really possible)
-###so next step is to calculate dI, using the approach used for the Prarie Potholes, and then run the model using the dIs
-##after that is done, I need to figure out how I made the colours for the tern plots and finalize those
-## present a set of figures and decide on the main points of the results
-
-
 ###------------making some plots----------
 
-ggtern(data=spring_results,aes(x=mriver,y=mgw, z=mprecip)) +
+ggtern(data=spring_results,aes(x=mriver,y=mgw, z=mprecip, color= rowname)) +
   theme_bw()+
   theme_showarrows()+
   geom_point(aes(color = site_number), size=3) +
@@ -527,3 +537,33 @@ ggtern(data=spring_results,aes(x=mriver,y=mgw, z=mprecip)) +
         legend.justification=c(0.5,0.5),
         legend.direction="horizontal",legend.box="horizontal",
         legend.box.just="top",legend.key.size = unit(0.5, "cm"))
+
+
+
+tplot<-list()
+
+
+for (i in 1:3){
+  colors <- c(rgb2hex(
+    r=round(results_2020[[i]]$gw_mean*255, 0),
+    g=round(results_2020[[i]]$river_mean*255,0),
+    b=round(results_2020[[i]]$precip_mean*255,0)))
+  names(colors) = c(results_2020[[i]]$rowname)
+  tern_plt<-
+    ggtern(data=as.data.frame(results_2020[[i]]),aes(x=river_mean,y=gw_mean, z=precip_mean, color=rowname)) +
+    scale_color_manual(values=colors)+
+    theme_bw()+
+    theme_showarrows()+
+    geom_point(size=7) +
+    geom_text(aes(label = rowname, x=river_mean,y=gw_mean, z=precip_mean), size = 3, col="white")+
+    labs(x="River", xarrow= "",y="Groundwater", yarrow = "", z="Rain", zarrow="")+
+    theme(legend.position="none")
+  
+  file_name <- paste0("tern_plot", sns[i], ".pdf")
+  ggsave(plot=last_plot(), filename=file_name)
+  tplot[[i]]<-tern_plt
+}
+
+terns_2020<-grid.arrange(tplot[[1]], tplot[[2]], tplot[[3]], ncol=3)
+ggsave(terns_2020, file="terns.png")
+
