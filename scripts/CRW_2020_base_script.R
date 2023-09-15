@@ -331,109 +331,17 @@ ggsave(perc_GW_creeks_plot, file = "output/perc_GW_creeks_plot.png", width=230, 
 
 
 
-##------##--------main mixing model using River, Precipitation and Groundwater---------------------------
-
-
-##
-###the spring isotopes are very enriched- could be the results of evaporation-- might be necessary to calculate the dI
-##to get a true sense of the inputs, otherwise it just comes out as high precipitation because of the enriched isotopes
-## the spring precip source is also more depleted in the spring, so that pushes the values even further to that outcome
-## ie. the wetlands are more enriched than precip (which isnt really possible)
-###so next step is to calculate dI, using the approach used for the Prarie Potholes, and then run the model using the dIs
-##after that is done, I need to figure out how I made the colours for the tern plots and finalize those
-## present a set of figures and decide on the main points of the results
-
-##need to calculate DI , need temp and RH to do that.
-# next step is to compare BRISCO and GOLDEN climate stations, decide which to use for T and rh
-## next step is to calculate the E/I's using the new rh values
-
-
-
-EI<-matrix(ncol=11, nrow=nrow(data))
-colnames(EI)<-c("EI", "starO", "starH", "sslO", "sslH", "EO", "EH", "slope", "input", "IO", "IH")
-
-isotopic_framework<-
-function (data, temp, rh){
-for (i in 1:nrow(data)){
-  K<-Temperature[i]
-  rh<-rh[i]
-  # α*
-  a18O<-exp((-7.685+6.7123*((10^3)/K)-1.664*((10^6)/(K^2))+0.35041*((10^9)/(K^3)))/1000)
-  a2H<- exp((1158.8*(K^3/10^9)-1620.1*(K^2/10^6)+794.84*(K/10^3)-161.04+2.9992*(10^9/K^3))/1000)
-  ##ε*
-  e18O<-a18O-1
-  e2H<-a2H-1
-  #εk
-  ek18O<-0.0142*(1-rh)
-  ek2H<-0.0125*(1-rh)
-  ##alternate version dAS for Prarie pothole (sSSL calculated)
-  #needs dPs
-  dPs18O<-Os_2020 %>% filter (Site.Number== data$Site.Number[i]) %>% .[,2:6] %>% as.numeric(.) %>% mean() ##need to Hs_2020 and Os_2020 from below
-  dPs2H<-Hs_2020 %>% filter (Site.Number== data$Site.Number[i]) %>% .[,2:6] %>% as.numeric(.) %>% mean()
-  mean(Hpd)
-  
-  dPs2H<-data$Ps.2H.[i]
-  dAs18O<-(dPs18O-e18O)/a18O
-  dAs2H<-(dPs2H-e2H)/a2H
-  #δp
-  dp18O<-data$P.18O.[i]
-  dp2H<-data$P.2H.[i]
-  
-  #δ*
-  dstar18O<-((rh*dAs18O)+ek18O+(e18O/a18O))/(rh-ek18O-(e18O/a18O))
-  dstar2H<-(rh*dAs2H+ek2H+e2H/a2H)/(rh-ek2H-e2H/a2H)
-  EI[i,2]<-dstar18O
-  EI[i,3]<-dstar2H
-  
-  
-  #δSSL ##for Prarie potholes, in the PAD this comes from PAD18
-  dssl18O<-a18O*dp18O*(1-rh+ek18O)+a18O*rh*dAs18O+a18O*ek18O+e18O
-  dssl2H<-a2H*dp2H*(1-rh+ek2H)+a2H*rh*dAs2H+a2H*ek2H+e2H
-  EI[i,4]<- dssl18O
-  EI[i,5]<- dssl2H
-  
-  #δE
-  dE18O<-((data$Opm[i]-e18O)/a18O-rh*dAs18O-ek18O)/(1-rh+ek18O)
-  dE2H<-((data$Hpm[i]-e2H)/a2H-rh*dAs2H-ek2H)/(1-rh+ek2H)
-  EI[i,6]<- dE18O
-  EI[i,7]<-dE2H
-  
-  ##slope and intercept
-  #slope<-(dstar2H-dp2H)/(dstar18O-dp18O) ##PAD
-  slope<-(dE2H-data$Hpm[i])/(dE18O-data$Opm[i])
-  int<-(data$Hpm[i]*1000)-(slope*(data$Opm[i]*1000))
-  EI[i,8]<- slope
-  EI[i,9]<- int
-  
-  #input water isotopic composition
-  #dI18O<-((-19.2/1000)-(int))/(slope-6.7) ##PAD
-  ##from Prarie potholes 
-  dI18O<-(int-10)/(8-slope)
-  dI2H<-(slope*dI18O)+int
-  EI[i,10]<- dI18O
-  EI[i,11]<- dI2H
-  
-  ##E/I
-  ei<-((dI18O/1000)-data$Opm[i])/(dE18O-data$Opm[i])
-  
-  EI[i,1]<-ei
-  
-}
-
-
+##------##--------main mixing model using River, Precipitation and Groundwater on the Wetland sites of 2020--------------------------
 
 EC_data<-read.csv("clean_data/NEON_EC_2020.csv")
 EC_data$collectDate<-as.Date(EC_data$collectDate, format = "%Y-%m-%d") ##converting dates from factor to dates 
-
-
-gis<-read.csv("clean_data/GIS coordinates for all CRD sites.csv")
 
 gis2<-read.csv("raw data/Locations & numbers of sites for CW 2020_csvofsites.csv")
 gis2<-gis2[,-(5:7)]
 names(gis2)<-c("Site.Number","Site.Name","Easting", "Northing")
 gis2$Northing<-as.integer(gis2$Northing)
 
-data_gis<-left_join(data, gis, by=join_by("Site.Number"=="Site.number"), multiple= "all")
+data_gis<-left_join(data, gis2, by=join_by("Site.Number"=="Site.Number"), multiple= "all")
 data_gis<-rows_patch(data_gis, gis2, by= "Site.Number")
 
 
@@ -464,17 +372,16 @@ EC_fall2<-rbind(EC_fall1, cond_NEON_F)
 ##---- Spring data mixing model--------
 
 
-#----------------------------making the snow H isotopes----------## last years sites
-
 #Locations & numbers of sites for CW 2020_csvofsites
 
-##extract values of o at sampling points and place in a table
+##extract values of o at sampling points and place in a table for the spring
 
-d<-data_gis%>%filter(Season=="Spring")
+
+#d<- data_gis[,-9]
+d<-data_gis%>% drop_na(Easting)
 Hs_2020<-data.frame(matrix(ncol=6, nrow=nrow(d)))
-Hs_2020[,1]=d$Site.Number
 names(Hs_2020)[1]<-"Site.Number"
-d<- d%>% drop_na()
+Hs_2020[,1]=d$Site.Number
 d2<- st_as_sf(d, coords = c("Easting", "Northing"), crs="+proj=utm +zone=11 +datum=WGS84")
 d2<-st_transform(d2, crs=st_crs(H[[1]]))
 
@@ -493,13 +400,243 @@ for (i in 1:6) {
 }
 
 
-set_seasons(data)
+write.csv(Os_2020, file= "O18_summer_precip.csv")
+##Os_2020<-read.csv("output/O18_summer_precip.csv")
+write.csv(Hs_2020, file= "H2_summer_precip.csv")
+#Hs_2020<-read.csv("output/H2_summer_precip.csv")
+##
+##
+###the spring isotopes are very enriched- could be the results of evaporation-- might be necessary to calculate the dI
+##to get a true sense of the inputs, otherwise it just comes out as high precipitation because of the enriched isotopes
+## the spring precip source is also more depleted in the spring, so that pushes the values even further to that outcome
+## ie. the wetlands are more enriched than precip (which isnt really possible)
+###so next step is to calculate dI, using the approach used for the Prarie Potholes, and then run the model using the dIs
+##after that is done, I need to figure out how I made the colours for the tern plots and finalize those
+## present a set of figures and decide on the main points of the results
+
+##need to calculate DI , need temp and RH to do that.
+# next step is to compare BRISCO and GOLDEN climate stations, decide which to use for T and rh
+## next step is to calculate the E/I's using the new rh values
+
+EC_1<-read.csv("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/raw data/climate_data/EC_raw/1173220.csv")
+EC_2<-read.csv("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/raw data/climate_data/EC_raw/1173209.csv")
+brisco<-read.csv("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/raw data/climate_data/FLNRO-WMB/865.csv")
+
+## EDA on data 
+EC_1$time<-as.Date(EC_1$time, format= "%Y-%m-%d")
+class(EC_1$time)
+EC_2$time<-as.Date(EC_2$time, format= "%Y-%m-%d")
+brisco$time<-as.Date(brisco$time, format= "%Y-%m-%d")
+
+EC_1$relative_humidity<-as.numeric(EC_1$relative_humidity)
+EC_1<-EC_1 %>% drop_na(relative_humidity)
+brisco$rel_hum<-as.numeric(brisco$rel_hum)
+brisco<-brisco %>% drop_na(rel_hum)
+EC_1$air_temperature<-as.numeric(EC_1$air_temperature)
+EC_1<-EC_1 %>% drop_na(air_temperature)
+brisco$air_temp<-as.numeric(brisco$air_temp)
+brisco<-brisco %>% drop_na(air_temp)
+
+spring_rh<-
+  (EC_1%>%filter(time >= "2020-04-01" & time <="2020-05-31") %>% .$relative_humidity %>% mean() +
+  brisco%>%filter(time >= "2020-04-01" & time <="2020-05-31") %>% .$rel_hum %>% mean())/2
+summer_rh<-
+  (EC_1%>%filter(time >= "2020-06-01" & time <="2020-07-31") %>% .$relative_humidity %>% mean() +
+     brisco%>%filter(time >= "2020-06-01" & time <="2020-07-31") %>% .$rel_hum %>% mean())/2
+fall_rh<-
+  (EC_1%>%filter(time >= "2020-08-01" & time <="2020-09-30") %>% .$relative_humidity %>% mean() +
+     brisco%>%filter(time >= "2020-08-01" & time <= "2020-09-30") %>% .$rel_hum %>% mean())/2
+##test
+fall_rh<-69.52 
+     brisco%>%filter(time >= "2020-08-01" & time <= "2020-09-30") %>% .$rel_hum %>% mean()
+spring_rh<-69.52 
+     brisco%>%filter(time >= "2020-04-01" & time <="2020-05-31") %>% .$rel_hum %>% mean()
+summer_rh<-69.52 
+     brisco%>%filter(time >= "2020-06-01" & time <="2020-07-31") %>% .$rel_hum %>% mean()
 
 
 
-##function for running the mixing model
+spring_temp<-
+  (EC_1%>%filter(time >= "2020-04-01" & time <="2020-05-31") %>% .$air_temperature %>% mean() +
+     brisco%>%filter(time >= "2020-04-01" & time <="2020-05-31") %>% .$air_temp %>% mean())/2
+summer_temp<-
+  (EC_1%>%filter(time >= "2020-06-01" & time <="2020-07-31") %>% .$air_temperature %>% mean() +
+     brisco%>%filter(time >= "2020-06-01" & time <="2020-07-31") %>% .$air_temp %>% mean())/2
+fall_temp<-
+  (EC_1%>%filter(time >= "2020-08-01" & time <="2020-09-30") %>% .$air_temperature %>% mean() +
+     brisco%>%filter(time >= "2020-08-01" & time <= "2020-09-30") %>% .$air_temp %>% mean())/2
+
+
+results<-matrix(ncol=11, nrow=nrow(data))
+colnames(results)<-c("EI", "starO", "starH", "sslO", "sslH", "EO", "EH", "slope", "input", "IO", "IH")
+
+Oma<-raster("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/clean_data/IsotopeMaps/Oma.asc")
+Hma<-raster("C:/Users/Casey/Dropbox/columbia river delta/Columbia_River_Wetlands_2020/clean_data/IsotopeMaps/Hma.asc")
+
+Hma_2020<-data.frame(matrix(ncol=2, nrow=nrow(d)))
+names(Hma_2020)[1]<-"Site.Number"
+Hma_2020[,1]=d$Site.Number
+#d2<- st_as_sf(d, coords = c("Easting", "Northing"), crs="+proj=utm +zone=11 +datum=WGS84")
+#d2<-st_transform(d2, crs=st_crs(Hma[[1]]))
+
+Hma_2020[,2]<-raster::extract(Hma,d2)
+write.csv(Hma_2020, file="output/H_2020_annual_precip.csv")
+
+Oma_2020<-data.frame(matrix(ncol=2, nrow=nrow(d)))
+Oma_2020[,1]=d$Site.Number
+names(Oma_2020)[1]<-"Site.Number"
+Oma_2020[,2]<-raster::extract(Oma,d2)
+write.csv(Oma_2020, file="output/O_2020_annual_precip.csv")
+
+##tesing new rh values
+results<-matrix(ncol=11, nrow=nrow(data))
+colnames(results)<-c("EI", "starO", "starH", "sslO", "sslH", "EO", "EH", "slope", "input", "IO", "IH")
+
+
+isotopic_framework<-  ##need Os & Hs from below
+  function (data){
+    data2<-data%>% filter (Type=="W")
+    results<-matrix(ncol=13, nrow=nrow(data2))
+    results[,1]<-data2$Site.Number
+    results[,2]<-data2$Sample.Date
+    colnames(results)<-c("Site.Number","date", "starO", "starH", "sslO", "sslH", "EO", "EH", "slope", "input", "IO", "IH","EI")
+    for (i in 1:nrow(data2)){
+      if (data2$Sample.Date[i] >= "2020-04-01" & data2$Sample.Date[i] <= "2020-05-31"){
+        K = spring_temp + 273.15
+      }else if (data2$Sample.Date[i] >= "2020-05-01" & data2$Sample.Date[i] <= "2020-06-31"){
+        K = summer_temp + 273.15
+      } else if (data2$Sample.Date[i] >= "2020-08-01" & data2$Sample.Date[i] <= "2020-10-30"){
+        K = fall_temp + 273.15 }
+      
+      if (data2$Sample.Date[i] >= "2020-04-01" & data2$Sample.Date[i] <= "2020-05-31"){
+        rh = spring_rh/100
+      }else if (data2$Sample.Date[i] >= "2020-05-01" & data2$Sample.Date[i] <= "2020-06-31"){
+        rh = summer_rh/100
+      } else if (data2$Sample.Date[i] >= "2020-08-01" & data2$Sample.Date[i] <= "2020-10-30"){
+        rh = fall_rh/100 }
+      
+      # α*
+      a18O<-exp((-7.685+6.7123*((10^3)/K)-1.664*((10^6)/(K^2))+0.35041*((10^9)/(K^3)))/1000)
+      a2H<- exp((1158.8*(K^3/10^9)-1620.1*(K^2/10^6)+794.84*(K/10^3)-161.04+2.9992*(10^9/K^3))/1000)
+      ##ε*
+      e18O<-a18O-1
+      e2H<-a2H-1
+      #εk
+      ek18O<-0.0142*(1-rh)
+      ek2H<-0.0125*(1-rh)
+      ##alternate version dAS for Prarie pothole (sSSL calculated)
+      #needs dPs
+      dPs18O<-Os_2020 %>% filter (Site.Number== data2$Site.Number[i]) %>% .[1,2:7] %>% as.numeric(.) %>% mean() ##need to Hs_2020 and Os_2020 from below
+      dPs18O<-dPs18O/1000
+      dPs2H<-Hs_2020 %>% filter (Site.Number== data2$Site.Number[i]) %>% .[1,2:7] %>% as.numeric(.) %>% mean()
+      dPs2H<-dPs2H/1000
+      dAs18O<-(dPs18O-e18O)/a18O
+      dAs2H<-(dPs2H-e2H)/a2H
+      #δp
+      dp18O<-Oma_2020 %>% filter (Site.Number== data2$Site.Number[i]) %>% .[1,2] %>% as.numeric(.) %>% mean()
+      dp18O<-dp18O/1000
+      dp2H<-Hma_2020 %>% filter (Site.Number== data2$Site.Number[i]) %>% .[1,2] %>% as.numeric(.) %>% mean()
+      dp2H<-dp2H/1000
+      #δ*
+      dstar18O<-((rh*dAs18O)+ek18O+(e18O/a18O))/(rh-ek18O-(e18O/a18O))
+      dstar2H<-(rh*dAs2H+ek2H+e2H/a2H)/(rh-ek2H-e2H/a2H)
+      results[i,3]<-dstar18O
+      results[i,4]<-dstar2H
+      
+      
+      #δSSL 
+      dssl18O<-a18O*dp18O*(1-rh+ek18O)+a18O*rh*dAs18O+a18O*ek18O+e18O
+      dssl2H<-a2H*dp2H*(1-rh+ek2H)+a2H*rh*dAs2H+a2H*ek2H+e2H
+      results[i,5]<- dssl18O
+      results[i,6]<- dssl2H
+      
+      #δE
+      dE18O<-(((data2$O18[i]/1000)-e18O)/a18O-rh*dAs18O-ek18O)/(1-rh+ek18O)
+      dE2H<-(((data2$H2[i]/1000)-e2H)/a2H-rh*dAs2H-ek2H)/(1-rh+ek2H)
+      results[i,7]<- dE18O
+      results[i,8]<-dE2H
+      
+      ##slope and intercept
+      #slope<-(dstar2H-dp2H)/(dstar18O-dp18O) ##PAD
+      slope<-(dE2H-(data2$H2[i]/1000))/(dE18O-(data2$O18[i]/1000))
+      int<-data2$H2[i]-slope*data2$O18[i]
+      
+      results[i,9]<- slope
+      results[i,10]<- int
+      
+      #input water isotopic composition
+      #dI18O<-((-19.2/1000)-(int))/(slope-6.7) ##PAD
+      ##from Prarie potholes 
+      dI18O<-(-20.75-int)/(slope-6.81)
+      dI2H<-(slope*dI18O)+int
+      results[i,11]<- dI18O
+      results[i,12]<- dI2H
+      
+      ##E/I
+      ei<-(dI18O-data2$O18[i])/((dE18O*1000)-data2$O18[i])
+      
+      results[i,13]<-ei
+      
+    }
+    results<<-as.data.frame(results)
+    #write.csv(results, file="framework_results_2020.csv")
+    return(results)
+  }
+
+isotopic_framework(data)
+write.csv(results, file="framework_results_2020_onlybriscorh.csv")
+
+view(results)
+results$Site.Number<-as.numeric(results$Site.Number)
+colnames(results)[colnames(results) == "date"] <- "Sample.Date"
+
+dI_data<-data
+
+
+merged_df<- left_join(dI_data, results, by=c("Site.Number", "Sample.Date"))
+merged_df$O18<-coalesce(as.numeric(merged_df$IO), merged_df$O18)
+
+dI_data<-merged_df%>%dplyr::select(Site.Number,Site.Name, Type, Sample.Date, O18,H2,EC)
+
+#set_seasons(data)
+dI_data<-set_seasons(dI_data)
+dI_data$Type[196]<-"L" ##fixing an error
+
+plots<-list()
+for (i in 1:nrow(results)){
+  plot<-
+  ggplot(data = results[i,])+
+  geom_point(aes(x= as.numeric(starO)*1000, y =as.numeric(starH)*1000))+
+  geom_point(aes(x= as.numeric(EO)*1000, y =as.numeric(EH)*1000), col="pink")+
+  geom_abline(slope=8, intercept =10)+
+  geom_point(aes(x= as.numeric(IO), y =as.numeric(IH)), col="blue")+
+  geom_point(aes(x= as.numeric(sslO)*1000, y =as.numeric(sslH)*1000), col="orange")+
+  geom_point(x=spring_riverO, y=spring_riverH, col="red")+
+  geom_point(x=summer_riverO, y=summer_riverH, col="red")+
+  geom_point(x=fall_riverO, y=fall_riverH, col="red")+
+  geom_point(x=spring_gwO, y=spring_gwH, col="purple")+
+  geom_point(x=summer_gwO, y=summer_gwH, col="purple")+
+  geom_point(x=fall_gwO, y=fall_gwH, col="purple")+
+  geom_text(aes(x= -40, y =-100, label= Site.Number))+
+  geom_text(aes(x= -40, y =-125, label= date))+
+  theme_bw()
+  plots[[i]]<-plot
+}
+
+  
+aes(label = cty)  
+
+spring_gwO<-data %>% filter (Type == "G"& Season == "Spring")%>% .$O18 %>% mean()
+spring_gwH<-data %>% filter (Type == "G"& Season == "Spring")%>% .$H2 %>% mean()
+summer_gwH<-data %>% filter (Type == "G"& Season == "Summer")%>% .$H2 %>% mean()
+summer_gwO<-data %>% filter (Type == "G"& Season == "Summer")%>% .$O18 %>% mean()
+fall_gwO<-data %>% filter (Type == "G"& Season == "Fall")%>% .$O18 %>% mean()
+fall_gwH<-data %>% filter (Type == "G"& Season == "Fall")%>% .$H2 %>% mean()
+
+##function for running the mixing model ##need to move the dI data over to the data dataframe
+
 mix_model<-
-  function (data,s,mO1,mO2, mH1, mH2){ ##s=season
+  function (data,s){ ##s=season
 
 if (s=="Spring"){
   ECd<-EC_spring2
@@ -576,25 +713,30 @@ simmr_results_table<- function (ngroups) { ##this is where I am, need to make ta
     results_table[i,5]= stats$statistics[[i]][[4,1]]
     results_table[i,6]= stats$statistics[[i]][[4,2]]
   }
-  colnames(results_table)= c("mriver","riversd","mgw","gwsd", "mprecip", "precipsd")
+  colnames(results_table)= c("river_mean","river_sd","gw_mean","gw_sd","precip_mean","precip_sd")
   return(results_table)
 }
 
-mix_model(data, "Spring") ## mixture 5 is outside bounds, #24 & 2 are questionable-- lots of sites more enriched than precip
+mix_model(dI_data, "Spring") ## mixture 5 is outside bounds, #24 & 2 are questionable-- lots of sites more enriched than precip
 spring_results<-as.data.frame(simmr_results_table(ngroups=36))
-spring_results$site_number<- data %>% filter (Type == "W"& Season == "Spring")%>%.$Site.Number
-write.csv(spring_results, file="output/spring_results_proportions.csv")
+spring_results$site_number<- dI_data %>% filter (Type == "W"& Season == "Spring")%>%.$Site.Number
+#write.csv(spring_results, file="output/spring_results_proportions_dI.csv")
 
-mix_model(data, "Summer") ##mixture 6(site 35) has high EEC, 11 (47), 36(137) and 12 (48) have enriched isotopes
-summer_results<-as.data.frame(simmr_results_table(ngroups=37))
-summer_results$site_number<- data %>% filter (Type == "W"& Season == "Summer")%>%.$Site.Number
-write.csv(summer_results, file="output/summer_results_proportions.csv")
+mix_model(dI_data, "Summer") ##mixture 6(site 35) has high EEC, the input water composition is now lower than the river and groundwater, so that needs to be addressed
+summer_results<-as.data.frame(simmr_results_table(ngroups=36))
+summer_results$site_number<- dI_data %>% filter (Type == "W"& Season == "Summer")%>%.$Site.Number
+write.csv(summer_results, file="output/summer_results_proportions_dI.csv")
 
-mix_model(data, "Fall")
+mix_model(dI_data, "Fall")
 Fall_results<-as.data.frame(simmr_results_table(ngroups=34))
-Fall_results$site_number<- data %>% filter (Type == "W"& Season == "Fall")%>%.$Site.Number
-write.csv(Fall_results, file="output/fall_results_proportions.csv")
+Fall_results$site_number<- dI_data %>% filter (Type == "W"& Season == "Fall")%>%.$Site.Number
+write.csv(Fall_results, file="output/fall_results_proportions_dI.csv")
 
+colnames(spring_results)<-c("river_mean","river_sd","gw_mean","gw_sd","precip_mean","precip_sd", "site_number")
+colnames(summer_results)<-c("river_mean","river_sd","gw_mean","gw_sd","precip_mean","precip_sd", "site_number")
+colnames(Fall_results)<-c("river_mean","river_sd","gw_mean","gw_sd","precip_mean","precip_sd", "site_number")
+results_2020_dI<-list(spring_results, summer_results, Fall_results)
+##are the input water compisitions too depleted? are they too conservative?
 
 
 ###------------making some plots----------
@@ -622,25 +764,25 @@ tplot<-list()
 
 for (i in 1:3){
   colors <- c(rgb2hex(
-    r=round(results_2020[[i]]$gw_mean*255, 0),
-    g=round(results_2020[[i]]$river_mean*255,0),
-    b=round(results_2020[[i]]$precip_mean*255,0)))
-  names(colors) = c(results_2020[[i]]$rowname)
+    r=round(results_2020_dI[[i]]$gw_mean*255, 0),
+    g=round(results_2020_dI[[i]]$river_mean*255,0),
+    b=round(results_2020_dI[[i]]$precip_mean*255,0)))
+  names(colors) = c(results_2020_dI[[i]]$site_number)
   tern_plt<-
-    ggtern(data=as.data.frame(results_2020[[i]]),aes(x=river_mean,y=gw_mean, z=precip_mean, color=rowname)) +
+    ggtern(data=as.data.frame(results_2020_dI[[i]]),aes(x=river_mean,y=gw_mean, z=precip_mean, color=as.character(site_number))) +
     scale_color_manual(values=colors)+
     theme_bw()+
     theme_showarrows()+
     geom_point(size=7) +
-    geom_text(aes(label = rowname, x=river_mean,y=gw_mean, z=precip_mean), size = 3, col="white")+
+    geom_text(aes(label = site_number, x=river_mean,y=gw_mean), size = 3, col="white")+
     labs(x="River", xarrow= "",y="Groundwater", yarrow = "", z="Rain", zarrow="")+
     theme(legend.position="none")
   
-  file_name <- paste0("tern_plot", sns[i], ".pdf")
-  ggsave(plot=last_plot(), filename=file_name)
+  file_name <- paste0("tern_plot", sns[i],"dI", ".pdf")
+  #ggsave(plot=last_plot(), filename=file_name)
   tplot[[i]]<-tern_plt
 }
 
-terns_2020<-grid.arrange(tplot[[1]], tplot[[2]], tplot[[3]], ncol=3)
-ggsave(terns_2020, file="terns.png")
+terns_2020_dI<-grid.arrange(tplot[[1]], tplot[[2]], tplot[[3]], ncol=3)
+ggsave(terns_2020_dI, file="terns_2020_dI.png")
 
